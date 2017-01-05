@@ -1,0 +1,6 @@
+framework module DataTableKit {
+  umbrella header "DataTableKit-umbrella.h"
+
+  export *
+  module * { export * }
+}
