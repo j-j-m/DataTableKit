@@ -105,7 +105,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     public  var predicate : NSPredicate?
     public var predicateChangeCompletion: (() -> ())?
     
-    func refreshPredicate(predicate:NSPredicate, completion:(() -> ())?){
+    public func refreshPredicate(predicate:NSPredicate, completion:(() -> ())?){
         fetchedResultsController?.fetchRequest.predicate = predicate
         print(fetchedResultsController?.fetchRequest.predicate)
         print(predicate)
