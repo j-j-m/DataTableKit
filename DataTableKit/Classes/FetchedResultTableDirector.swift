@@ -27,7 +27,7 @@ import CoreData
 
 
 public protocol DataTableDirectorConforming {
-    func row(_ type:String) -> (action: () -> ()) -> Row
+    func row(type:String) -> (action: () -> ()) -> Row
 }
 
 
@@ -87,7 +87,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
    public  var fetchedResultsController : NSFetchedResultsController? {
         didSet {
             assert(NSThread.isMainThread())
-            weak var weakSelf = self
+           
             if let c = fetchedResultsController {
                 c.delegate = self
                 do {
@@ -141,7 +141,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
 //        offset section to reference fetched results controller
        
         if indexPath.section == dataSectionIndex {
-            var alteredIndex = NSIndexPath(forRow: indexPath.row, inSection: 0)
+            let alteredIndex = NSIndexPath(forRow: indexPath.row, inSection: 0)
             
             guard let selectedObject = fetchedResultsController!.objectAtIndexPath(alteredIndex) as? T else { fatalError("Unexpected Object in FetchedResultsController") }
             
@@ -262,7 +262,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     public func tableView(tableView: UITableView, estimatedHeightForRowAtIndexPath indexPath: NSIndexPath) -> CGFloat {
        
         
-        var row = tableRowForIndexPath(indexPath)
+        let row = tableRowForIndexPath(indexPath)
     
         cellRegisterer?.register(cellType: row.cellType, forCellReuseIdentifier: row.reuseIdentifier)
         return row.estimatedHeight ?? heightStrategy?.estimatedHeight(row, path: indexPath) ?? UITableViewAutomaticDimension
@@ -325,7 +325,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
         
         var row: Row?
         if(indexPath.section == dataSectionIndex){
-            var alteredIndex = NSIndexPath(forRow: indexPath.row, inSection: 0)
+            let alteredIndex = NSIndexPath(forRow: indexPath.row, inSection: 0)
              guard let selectedObject = fetchedResultsController!.objectAtIndexPath(alteredIndex) as? T else { fatalError("Unexpected Object in FetchedResultsController") }
         
            // let model:StringCellModel = ("Photo Frame \(indexPath.row + 1)", .Checkmark)
@@ -517,7 +517,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     }
     
     public func controllerDidChangeContent(controller: NSFetchedResultsController) {
-        weak var weakSelf = self
+
         dispatch_async(dispatch_get_main_queue()) {
             
             self.predicateChangeCompletion?()
