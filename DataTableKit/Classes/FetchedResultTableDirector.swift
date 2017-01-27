@@ -37,8 +37,8 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     open fileprivate(set) var sections = [TableSection]()
     
     private weak var scrollDelegate: UIScrollViewDelegate?
-    private var heightStrategy: CellHeightCalculatable?
     private var cellRegisterer: TableCellRegisterer?
+    public private(set) var rowHeightCalculator: RowHeightCalculator?
     
     //assume there will always be a data section
     private var sectionCount:Int = 1
@@ -70,10 +70,13 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
         }
     }
     
-    public var shouldUsePrototypeCellHeightCalculation: Bool = false {
+    @available(*, deprecated, message: "Produced incorrect behaviour")
+    open var shouldUsePrototypeCellHeightCalculation: Bool = false {
         didSet {
             if shouldUsePrototypeCellHeightCalculation {
-                heightStrategy = PrototypeHeightStrategy(tableView: tableView)
+                rowHeightCalculator = TablePrototypeCellHeightCalculator(tableView: tableView)
+            } else {
+                rowHeightCalculator = nil
             }
         }
     }
@@ -266,7 +269,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
         let row = tableRowForIndexPath(indexPath: indexPath)
     
         cellRegisterer?.register(cellType: row.cellType, forCellReuseIdentifier: row.reuseIdentifier)
-        return row.estimatedHeight ?? heightStrategy?.estimatedHeight(row: row, path: indexPath as NSIndexPath) ?? UITableViewAutomaticDimension
+        return row.estimatedHeight ?? UITableViewAutomaticDimension
     }
     
     open func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -275,7 +278,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
         
         let rowHeight = invoke(action: .height, cell: nil, indexPath: indexPath) as? CGFloat
         
-        return rowHeight ?? row.defaultHeight ?? heightStrategy?.height(row: row, path: indexPath as NSIndexPath) ?? UITableViewAutomaticDimension
+        return rowHeight ?? row.defaultHeight ?? UITableViewAutomaticDimension
     }
     
     // MARK: UITableViewDataSource - configuration
