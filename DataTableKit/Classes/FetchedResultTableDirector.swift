@@ -27,7 +27,7 @@ import CoreData
 
 
 public protocol DataTableDirectorConforming {
-    func row(type:String) -> (() -> ()) -> Row
+    func row(type:String) -> (@escaping () -> ()) -> Row
 }
 
 
