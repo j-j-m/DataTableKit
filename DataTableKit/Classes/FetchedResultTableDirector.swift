@@ -70,16 +70,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
         }
     }
     
-    @available(*, deprecated, message: "Produced incorrect behaviour")
-    open var shouldUsePrototypeCellHeightCalculation: Bool = false {
-        didSet {
-            if shouldUsePrototypeCellHeightCalculation {
-                rowHeightCalculator = TablePrototypeCellHeightCalculator(tableView: tableView)
-            } else {
-                rowHeightCalculator = nil
-            }
-        }
-    }
+  
     
     open var isEmpty: Bool {
         return sections.isEmpty
