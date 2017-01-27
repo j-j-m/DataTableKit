@@ -27,14 +27,14 @@ import CoreData
 
 
 public protocol DataTableDirectorConforming {
-    func row(type:String) -> (action: () -> ()) -> Row
+    func row(type:String) -> (() -> ()) -> Row
 }
 
 
 public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject, UITableViewDataSource, UITableViewDelegate, NSFetchedResultsControllerDelegate {
     
-    public private(set) weak var tableView: UITableView?
-    public private(set) var sections = [TableSection]()
+    open private(set) weak var tableView: UITableView?
+    open fileprivate(set) var sections = [TableSection]()
     
     private weak var scrollDelegate: UIScrollViewDelegate?
     private var heightStrategy: CellHeightCalculatable?
@@ -78,15 +78,15 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
         }
     }
     
-    public var isEmpty: Bool {
+    open var isEmpty: Bool {
         return sections.isEmpty
     }
     
 
     
-   public  var fetchedResultsController : NSFetchedResultsController? {
+   public  var fetchedResultsController : NSFetchedResultsController<NSFetchRequestResult>? {
         didSet {
-            assert(NSThread.isMainThread())
+            assert(Thread.isMainThread)
            
             if let c = fetchedResultsController {
                 c.delegate = self
@@ -110,7 +110,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
         print(fetchedResultsController?.fetchRequest.predicate)
         print(predicate)
         
-        refreshFetchedResults(completion)
+        refreshFetchedResults(completion: completion)
 
     }
     
@@ -136,16 +136,16 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     
     
     // get prototype row for indexpath
-    func tableRowForIndexPath(indexPath:NSIndexPath) -> Row {
+    func tableRowForIndexPath(indexPath:IndexPath) -> Row {
         
 //        offset section to reference fetched results controller
        
         if indexPath.section == dataSectionIndex {
-            let alteredIndex = NSIndexPath(forRow: indexPath.row, inSection: 0)
+            let alteredIndex = IndexPath(row: indexPath.row, section: 0)
             
-            guard let selectedObject = fetchedResultsController!.objectAtIndexPath(alteredIndex) as? T else { fatalError("Unexpected Object in FetchedResultsController") }
+            guard let selectedObject = fetchedResultsController!.object(at: alteredIndex) as? T else { fatalError("Unexpected Object in FetchedResultsController") }
             
-             return selectedObject.row(rowType)(action:protoTypeAction(selectedObject))
+             return selectedObject.row(type: rowType)(protoTypeAction(selectedObject))
         }
         else if indexPath.section < dataSectionIndex {
             return sectionsBefore![indexPath.section].rows[indexPath.row]
@@ -166,7 +166,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     }
     
     public init(tableView: UITableView,
-                fetchedResultsController: NSFetchedResultsController,
+                fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult>,
                 rowType:String = "",
                 prototypeAction:((T) -> () -> ())? = nil,
                 sectionsBefore:[TableSection]? = nil,
@@ -211,7 +211,7 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
         self.tableView?.delegate = self
         self.tableView?.dataSource = self
         
-        NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(didReceiveAction), name: TableKitNotifications.CellAction, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(didReceiveAction), name: NSNotification.Name(rawValue: TableKitNotifications.CellAction), object: nil)
         
         self.fetchedResultsController = fetchedResultsController
         refreshFetchedResults()
@@ -220,72 +220,73 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     }
     
     deinit {
-        NSNotificationCenter.defaultCenter().removeObserver(self)
+        NotificationCenter.default.removeObserver(self)
     }
     
-    public func reload() {
-        dispatch_async(dispatch_get_main_queue(),{
+    open func reload() {
+       DispatchQueue.main.async {
             self.tableView?.reloadData()
-        })
+        }
     }
     
     // MARK: Public
     
-    public func invoke(action action: TableRowActionType, cell: UITableViewCell?, indexPath: NSIndexPath) -> Any? {
+    @discardableResult
+    open func invoke(action: TableRowActionType, cell: UITableViewCell?, indexPath: IndexPath, userInfo: [AnyHashable: Any]? = nil) -> Any? {
+
         
-        return tableRowForIndexPath(indexPath).invoke(action, cell: cell, path: indexPath)
+        return tableRowForIndexPath(indexPath: indexPath).invoke(action: action, cell: cell, path: indexPath, userInfo: userInfo)
     
     }
     
-    public override func respondsToSelector(selector: Selector) -> Bool {
-        return super.respondsToSelector(selector) || scrollDelegate?.respondsToSelector(selector) == true
+    open override func responds(to selector: Selector) -> Bool {
+        return super.responds(to:selector) || scrollDelegate?.responds(to: selector) == true
     }
     
-    public override func forwardingTargetForSelector(selector: Selector) -> AnyObject? {
-        return scrollDelegate?.respondsToSelector(selector) == true ? scrollDelegate : super.forwardingTargetForSelector(selector)
+    open override func forwardingTarget(for selector: Selector) -> Any? {
+        return scrollDelegate?.responds(to: selector) == true ? scrollDelegate : super.forwardingTarget(for: selector)
     }
     
     // MARK: - Internal -
     
-    func hasAction(action: TableRowActionType, atIndexPath indexPath: NSIndexPath) -> Bool {
-        return tableRowForIndexPath(indexPath).hasAction(action)
+    func hasAction(_ action: TableRowActionType, atIndexPath indexPath: IndexPath) -> Bool {
+        return tableRowForIndexPath(indexPath: indexPath).has(action:action)
     }
     
-    func didReceiveAction(notification: NSNotification) {
+    func didReceiveAction(_ notification: Notification) {
         
-        guard let action = notification.object as? TableCellAction, indexPath = tableView?.indexPathForCell(action.cell) else { return }
+        guard let action = notification.object as? TableCellAction, let indexPath = tableView?.indexPath(for: action.cell) else { return }
         invoke(action: .custom(action.key), cell: action.cell, indexPath: indexPath)
     }
     
     // MARK: - Height
     
-    public func tableView(tableView: UITableView, estimatedHeightForRowAtIndexPath indexPath: NSIndexPath) -> CGFloat {
-       
+    open func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
         
-        let row = tableRowForIndexPath(indexPath)
+        let row = tableRowForIndexPath(indexPath: indexPath)
     
         cellRegisterer?.register(cellType: row.cellType, forCellReuseIdentifier: row.reuseIdentifier)
-        return row.estimatedHeight ?? heightStrategy?.estimatedHeight(row, path: indexPath) ?? UITableViewAutomaticDimension
+        return row.estimatedHeight ?? heightStrategy?.estimatedHeight(row: row, path: indexPath as NSIndexPath) ?? UITableViewAutomaticDimension
     }
     
-    public func tableView(tableView: UITableView, heightForRowAtIndexPath indexPath: NSIndexPath) -> CGFloat {
+    open func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         
-        let row = tableRowForIndexPath(indexPath)
+        let row = tableRowForIndexPath(indexPath: indexPath)
         
         let rowHeight = invoke(action: .height, cell: nil, indexPath: indexPath) as? CGFloat
         
-        return rowHeight ?? row.defaultHeight ?? heightStrategy?.height(row, path: indexPath) ?? UITableViewAutomaticDimension
+        return rowHeight ?? row.defaultHeight ?? heightStrategy?.height(row: row, path: indexPath as NSIndexPath) ?? UITableViewAutomaticDimension
     }
     
     // MARK: UITableViewDataSource - configuration
     
-    public func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    open func numberOfSections(in tableView: UITableView) -> Int {
        
         
         return sectionCount
     }
     
-    public func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    open func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
       
         if section == dataSectionIndex {
             if let fetchedResultsController = fetchedResultsController {
@@ -319,27 +320,31 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     
     
     
-    public func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+    open func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
        
         
         var row: Row?
         if(indexPath.section == dataSectionIndex){
-            let alteredIndex = NSIndexPath(forRow: indexPath.row, inSection: 0)
-             guard let selectedObject = fetchedResultsController!.objectAtIndexPath(alteredIndex) as? T else { fatalError("Unexpected Object in FetchedResultsController") }
+            let alteredIndex = NSIndexPath(row: indexPath.row, section: 0)
+             guard let selectedObject = fetchedResultsController!.object(at: alteredIndex as IndexPath) as? T else { fatalError("Unexpected Object in FetchedResultsController") }
         
            // let model:StringCellModel = ("Photo Frame \(indexPath.row + 1)", .Checkmark)
         
-             row = selectedObject.row(rowType)(action:protoTypeAction(selectedObject))
+             row = selectedObject.row(type: rowType)(protoTypeAction(selectedObject))
         }
         else {
-            row = tableRowForIndexPath(indexPath)
+            row = tableRowForIndexPath(indexPath: indexPath)
         }
         
-        let cell = tableView.dequeueReusableCellWithIdentifier(row!.reuseIdentifier, forIndexPath: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: row!
+            
+            
+            
+            .reuseIdentifier, for: indexPath)
         
         if cell.frame.size.width != tableView.frame.size.width {
-            cell.frame = CGRectMake(0, 0, tableView.frame.size.width, cell.frame.size.height)
+            cell.frame = CGRect(x:0, y:0, width:tableView.frame.size.width, height:cell.frame.size.height)
             cell.layoutIfNeeded()
         }
         
@@ -351,144 +356,150 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     
     // MARK: UITableViewDataSource - section setup
     
-    public func tableView(tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    open func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         if(section == dataSectionIndex){
             return dataSectionHeaderTitle
         }
-        let s = getSectionAtIndex(section)
+        let s = getSectionAtIndex(index: section)
         return s.headerTitle
     }
     
-    public func tableView(tableView: UITableView, titleForFooterInSection section: Int) -> String? {
+    open func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
 
         if(section == dataSectionIndex){
             return dataSectionFooterTitle
         }
-        let s = getSectionAtIndex(section)
+        let s = getSectionAtIndex(index: section)
         return s.footerTitle
     }
     
     // MARK: UITableViewDelegate - section setup
     
-    public func tableView(tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+    open func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
         
         if(section == dataSectionIndex){
             return dataSectionHeader
         }
-        let s = getSectionAtIndex(section)
+        let s = getSectionAtIndex(index: section)
         return s.headerView
     }
     
-    public func tableView(tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
+    open func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
         if(section == dataSectionIndex){
             return dataSectionFooter
         }
-        let s = getSectionAtIndex(section)
+        let s = getSectionAtIndex(index: section)
         return s.footerView
     }
     
-    public func tableView(tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+    open func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
     
         if(section == dataSectionIndex){
             return dataSectionHeader?.bounds.size.height ??  dataSectionHeaderHeight ?? 0
         }
-        let s = getSectionAtIndex(section)
+        let s = getSectionAtIndex(index: section)
         return s.headerHeight ?? s.headerView?.frame.size.height ?? 0
     }
     
-    public func tableView(tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
+    open func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
         
         if(section == dataSectionIndex){
             return dataSectionFooter?.bounds.size.height ??  dataSectionFooterHeight ?? 0
         }
-        let s = getSectionAtIndex(section)
+        let s = getSectionAtIndex(index: section)
         return s.footerHeight ?? s.footerView?.frame.size.height ?? 0
         
     }
     
     // MARK: UITableViewDelegate - actions
     
-    public func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    open func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        let cell = tableView.cellForRowAtIndexPath(indexPath)
+        let cell = tableView.cellForRow(at: indexPath)
         
         if invoke(action: .click, cell: cell, indexPath: indexPath) != nil {
-            tableView.deselectRowAtIndexPath(indexPath, animated: true)
+            tableView.deselectRow(at: indexPath, animated: true)
         } else {
             invoke(action: .select, cell: cell, indexPath: indexPath)
         }
     }
     
-    public func tableView(tableView: UITableView, didDeselectRowAtIndexPath indexPath: NSIndexPath) {
-        invoke(action: .deselect, cell: tableView.cellForRowAtIndexPath(indexPath), indexPath: indexPath)
+    open func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath) {
+        invoke(action: .deselect, cell: tableView.cellForRow(at: indexPath), indexPath: indexPath)
     }
     
-    public func tableView(tableView: UITableView, willDisplayCell cell: UITableViewCell, forRowAtIndexPath indexPath: NSIndexPath) {
+    open func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
         invoke(action: .willDisplay, cell: cell, indexPath: indexPath)
     }
     
-    public func tableView(tableView: UITableView, shouldHighlightRowAtIndexPath indexPath: NSIndexPath) -> Bool {
-        return invoke(action: .shouldHighlight, cell: tableView.cellForRowAtIndexPath(indexPath), indexPath: indexPath) as? Bool ?? true
+    open func tableView(_ tableView: UITableView, shouldHighlightRowAt indexPath: IndexPath) -> Bool {
+        return invoke(action: .shouldHighlight, cell: tableView.cellForRow(at: indexPath), indexPath: indexPath) as? Bool ?? true
     }
     
-    public func tableView(tableView: UITableView, willSelectRowAtIndexPath indexPath: NSIndexPath) -> NSIndexPath? {
+    open func tableView(_ tableView: UITableView, willSelectRowAt indexPath: IndexPath) -> IndexPath? {
         
         if hasAction(.willSelect, atIndexPath: indexPath) {
-            return invoke(action: .willSelect, cell: tableView.cellForRowAtIndexPath(indexPath), indexPath: indexPath) as? NSIndexPath
+            return invoke(action: .willSelect, cell: tableView.cellForRow(at: indexPath), indexPath: indexPath) as! IndexPath?
         }
         return indexPath
     }
     
     // MARK: - Row editing -
     
-    public func tableView(tableView: UITableView, canEditRowAtIndexPath indexPath: NSIndexPath) -> Bool {
+    open func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         return false
     }
     
-    public func tableView(tableView: UITableView, editActionsForRowAtIndexPath indexPath: NSIndexPath) -> [UITableViewRowAction]? {
+    open func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
         return sections[indexPath.section].rows[indexPath.row].editingActions
     }
     
-    public func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
+    open func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
         
-        if editingStyle == .Delete {
-            invoke(action: .clickDelete, cell: tableView.cellForRowAtIndexPath(indexPath), indexPath: indexPath)
+        if editingStyle == .delete {
+            invoke(action: .clickDelete, cell: tableView.cellForRow(at: indexPath), indexPath: indexPath)
         }
     }
     
     // MARK: - Sections manipulation -
     
-    public func append(section section: TableSection) -> Self {
+    @discardableResult
+    open func append(section: TableSection) -> Self {
         
         append(sections: [section])
         return self
     }
     
-    public func append(sections sections: [TableSection]) -> Self {
+    @discardableResult
+    open func append(sections: [TableSection]) -> Self {
         
-        self.sections.appendContentsOf(sections)
+        self.sections.append(contentsOf: sections)
         return self
     }
     
-    public func append(rows rows: [Row]) -> Self {
+    @discardableResult
+    open func append(rows: [Row]) -> Self {
         
         append(section: TableSection(rows: rows))
         return self
     }
     
-    public func insert(section section: TableSection, atIndex index: Int) -> Self {
+    @discardableResult
+    open func insert(section: TableSection, atIndex index: Int) -> Self {
         
-        sections.insert(section, atIndex: index)
+        sections.insert(section, at: index)
         return self
     }
     
-    public func delete(index index: Int) -> Self {
+    @discardableResult
+    open func delete(sectionAt index: Int) -> Self {
         
-        sections.removeAtIndex(index)
+        sections.remove(at: index)
         return self
     }
     
-    public func clear() -> Self {
+    @discardableResult
+    open func clear() -> Self {
         
         sections.removeAll()
         return self
@@ -504,21 +515,21 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     
    
     
-    public func controllerWillChangeContent(controller: NSFetchedResultsController) {
+    public func controllerWillChangeContent(controller: NSFetchedResultsController<NSFetchRequestResult>) {
         //        self.tableView!.beginUpdates()
     }
     
-    public func controller(controller: NSFetchedResultsController, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
+    public func controller(controller: NSFetchedResultsController<NSFetchRequestResult>, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
         
     }
     
-    public func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
+    public func controller(controller: NSFetchedResultsController<NSFetchRequestResult>, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
         
     }
     
-    public func controllerDidChangeContent(controller: NSFetchedResultsController) {
+    public func controllerDidChangeContent(controller: NSFetchedResultsController<NSFetchRequestResult>) {
 
-        dispatch_async(dispatch_get_main_queue()) {
+        DispatchQueue.main.async {
             
             self.predicateChangeCompletion?()
             

@@ -20,39 +20,14 @@
 
 import UIKit
 
-public enum TableRowActionType {
-    
-    case click
-    case clickDelete
-    case select
-    case deselect
-    case willSelect
-    case willDisplay
-    case shouldHighlight
-    case height
-    case canEdit
-    case configure
-    case custom(String)
-    
-    var key: String {
-        
-        switch (self) {
-        case .custom(let key):
-            return key
-        default:
-            return "_\(self)"
-        }
-    }
-}
+open class TableRowActionOptions<CellType: ConfigurableCell> where CellType: UITableViewCell {
 
-public class TableRowActionData<ItemType, CellType: ConfigurableCell where CellType.T == ItemType, CellType: UITableViewCell> {
+    open let item: CellType.T
+    open let cell: CellType?
+    open let indexPath: IndexPath
+    open let userInfo: [AnyHashable: Any]?
 
-    public let item: ItemType
-    public let cell: CellType?
-    public let indexPath: NSIndexPath
-    public let userInfo: [NSObject: AnyObject]?
-
-    init(item: ItemType, cell: CellType?, path: NSIndexPath, userInfo: [NSObject: AnyObject]?) {
+    init(item: CellType.T, cell: CellType?, path: IndexPath, userInfo: [AnyHashable: Any]?) {
 
         self.item = item
         self.cell = cell
@@ -61,24 +36,48 @@ public class TableRowActionData<ItemType, CellType: ConfigurableCell where CellT
     }
 }
 
-public class TableRowAction<ItemType, CellType: ConfigurableCell where CellType.T == ItemType, CellType: UITableViewCell> {
+private enum TableRowActionHandler<CellType: ConfigurableCell> where CellType: UITableViewCell {
 
-    public let type: TableRowActionType
-    private let handler: ((data: TableRowActionData<ItemType, CellType>) -> Any?)
+    case voidAction((TableRowActionOptions<CellType>) -> Void)
+    case action((TableRowActionOptions<CellType>) -> Any?)
 
-    public init(_ type: TableRowActionType, handler: (data: TableRowActionData<ItemType, CellType>) -> Void) {
+    func invoke(withOptions options: TableRowActionOptions<CellType>) -> Any? {
+        
+        switch self {
+        case .voidAction(let handler):
+            return handler(options)
+        case .action(let handler):
+            return handler(options)
+        }
+    }
+}
+
+open class TableRowAction<CellType: ConfigurableCell> where CellType: UITableViewCell {
+
+    open var id: String?
+    open let type: TableRowActionType
+    private let handler: TableRowActionHandler<CellType>
+    
+    public init(_ type: TableRowActionType, handler: @escaping (_ options: TableRowActionOptions<CellType>) -> Void) {
 
         self.type = type
-        self.handler = handler
+        self.handler = .voidAction(handler)
     }
     
-    public init<T>(_ type: TableRowActionType, handler: (data: TableRowActionData<ItemType, CellType>) -> T) {
+    public init(_ key: String, handler: @escaping (_ options: TableRowActionOptions<CellType>) -> Void) {
+        
+        self.type = .custom(key)
+        self.handler = .voidAction(handler)
+    }
+    
+    public init<T>(_ type: TableRowActionType, handler: @escaping (_ options: TableRowActionOptions<CellType>) -> T) {
 
         self.type = type
-        self.handler = handler
+        self.handler = .action(handler)
     }
 
-    func invoke(item item: ItemType, cell: UITableViewCell?, path: NSIndexPath) -> Any? {
-        return handler(data: TableRowActionData(item: item, cell: cell as? CellType, path: path, userInfo: nil))
+    public func invokeActionOn(cell: UITableViewCell?, item: CellType.T, path: IndexPath, userInfo: [AnyHashable: Any]?) -> Any? {
+
+        return handler.invoke(withOptions: TableRowActionOptions(item: item, cell: cell as? CellType, path: path, userInfo: userInfo))
     }
 }

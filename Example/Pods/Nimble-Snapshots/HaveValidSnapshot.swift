@@ -46,7 +46,7 @@ extension UIView : Snapshotable {
         #if swift(>=3.0)
             snapshotController.isDeviceAgnostic = isDeviceAgnostic
         #else
-            snapshotController.deviceAgnostic = isDeviceAgnostic
+            snapshotController.isDeviceAgnostic = isDeviceAgnostic
         #endif
         snapshotController.recordMode = record
         snapshotController.referenceImagesDirectory = referenceDirectory
@@ -58,7 +58,7 @@ extension UIView : Snapshotable {
             #if swift(>=3.0)
                 try snapshotController.compareSnapshot(ofViewOrLayer: instance.snapshotObject, selector: Selector(snapshot), identifier: nil, tolerance: tolerance)
             #else
-                try snapshotController.compareSnapshotOfViewOrLayer(instance.snapshotObject, selector: Selector(snapshot), identifier: nil, tolerance: tolerance)
+                try snapshotController.compareSnapshot(ofViewOrLayer: instance.snapshotObject, selector: Selector(snapshot), identifier: nil, tolerance: tolerance)
             #endif
         }
         catch {
@@ -75,7 +75,7 @@ public func setNimbleTestFolder(_ testFolder: String) {
     #if swift(>=3.0)
         testFolderSuffixes = [testFolder.lowercased()]
     #else
-        testFolderSuffixes = [testFolder.lowercaseString]
+        testFolderSuffixes = [testFolder.lowercased()]
     #endif
 }
 
@@ -99,7 +99,7 @@ func _getDefaultReferenceDirectory(_ sourceFileName: String) -> String {
         #if swift(>=3.0)
             return testFolderSuffixes.filter { (component as AnyObject).lowercased.hasSuffix($0) }.count > 0
         #else
-            return testFolderSuffixes.filter { component.lowercaseString.hasSuffix($0) }.count > 0
+            return testFolderSuffixes.filter { component.lowercased.hasSuffix($0) }.count > 0
         #endif
         }.first
 
@@ -113,9 +113,9 @@ func _getDefaultReferenceDirectory(_ sourceFileName: String) -> String {
         let folderPathComponents: NSArray = pathComponents.subarray(with: NSMakeRange(0, currentIndex)) as NSArray
         let folderPath = folderPathComponents.componentsJoined(by: "/")
     #else
-      let currentIndex = pathComponents.indexOfObject(testDirectory) + 1
-        let folderPathComponents: NSArray = pathComponents.subarrayWithRange(NSMakeRange(0, currentIndex))
-        let folderPath = folderPathComponents.componentsJoinedByString("/")
+      let currentIndex = pathComponents.index(of: testDirectory) + 1
+        let folderPathComponents: NSArray = pathComponents.subarray(with: NSMakeRange(0, currentIndex))
+        let folderPath = folderPathComponents.componentsJoined(by: "/")
     #endif
 
     return folderPath + "/ReferenceImages"
@@ -143,10 +143,10 @@ func _sanitizedTestName(_ name: String?) -> String {
         return components.joined(separator: "_")
     #else
         filename = filename.stringByReplacingOccurrencesOfString("root example group, ", withString: "")
-        let characterSet = NSCharacterSet(charactersInString: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+        let characterSet = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
         let components: NSArray = filename.componentsSeparatedByCharactersInSet(characterSet.invertedSet)
 
-        return components.componentsJoinedByString("_")
+        return components.componentsJoined(by: "_")
     #endif
 }
 

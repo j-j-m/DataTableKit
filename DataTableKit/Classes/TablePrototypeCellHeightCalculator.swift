@@ -20,26 +20,18 @@
 
 import UIKit
 
-public protocol CellHeightCalculatable {
+open class TablePrototypeCellHeightCalculator: RowHeightCalculator {
 
-    func height(row: Row, path: NSIndexPath) -> CGFloat
-    func estimatedHeight(row: Row, path: NSIndexPath) -> CGFloat
-    
-    func invalidate()
-}
-
-public class PrototypeHeightStrategy: CellHeightCalculatable {
-
-    private weak var tableView: UITableView?
+    private(set) weak var tableView: UITableView?
     private var prototypes = [String: UITableViewCell]()
     private var cachedHeights = [Int: CGFloat]()
     private var separatorHeight = 1 / UIScreen.main.scale
     
-    init(tableView: UITableView?) {
+    public init(tableView: UITableView?) {
         self.tableView = tableView
     }
     
-    public func height(row: Row, path: NSIndexPath) -> CGFloat {
+    open func height(forRow row: Row, at indexPath: IndexPath) -> CGFloat {
 
         guard let tableView = tableView else { return 0 }
 
@@ -58,9 +50,10 @@ public class PrototypeHeightStrategy: CellHeightCalculatable {
 
         guard let cell = prototypeCell else { return 0 }
         
+        cell.prepareForReuse()
         row.configure(cell)
         
-        cell.bounds = CGRect(x:0, y:0, width:tableView.bounds.size.width, height:cell.bounds.height)
+        cell.bounds = CGRect(x: 0, y: 0, width: tableView.bounds.size.width, height: cell.bounds.height)
         cell.setNeedsLayout()
         cell.layoutIfNeeded()
 
@@ -71,7 +64,7 @@ public class PrototypeHeightStrategy: CellHeightCalculatable {
         return height
     }
 
-    public func estimatedHeight(row: Row, path: NSIndexPath) -> CGFloat {
+    open func estimatedHeight(forRow row: Row, at indexPath: IndexPath) -> CGFloat {
 
         guard let tableView = tableView else { return 0 }
 
@@ -81,14 +74,14 @@ public class PrototypeHeightStrategy: CellHeightCalculatable {
             return height
         }
 
-        if let estimatedHeight = row.estimatedHeight, estimatedHeight > 0 {
+        if let estimatedHeight = row.estimatedHeight , estimatedHeight > 0 {
             return estimatedHeight
         }
 
         return UITableViewAutomaticDimension
     }
 
-    public func invalidate() {
+    open func invalidate() {
         cachedHeights.removeAll()
     }
 }
