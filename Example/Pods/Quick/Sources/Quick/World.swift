@@ -4,13 +4,13 @@ import Foundation
     A closure that, when evaluated, returns a dictionary of key-value
     pairs that can be accessed from within a group of shared examples.
 */
-public typealias SharedExampleContext = () -> (NSDictionary)
+public typealias SharedExampleContext = () -> [String: Any]
 
 /**
     A closure that is used to define a group of shared examples. This
     closure may contain any number of example and example groups.
 */
-public typealias SharedExampleClosure = (@escaping SharedExampleContext) -> ()
+public typealias SharedExampleClosure = (@escaping SharedExampleContext) -> Void
 
 /**
     A collection of state Quick builds up in order to work its magic.
@@ -52,17 +52,18 @@ final internal class World: NSObject {
     internal var isRunningAdditionalSuites = false
 #endif
 
-    fileprivate var specs: Dictionary<String, ExampleGroup> = [:]
-    fileprivate var sharedExamples: [String: SharedExampleClosure] = [:]
-    fileprivate let configuration = Configuration()
-    fileprivate var isConfigurationFinalized = false
+    private var specs: [String: ExampleGroup] = [:]
+    private var sharedExamples: [String: SharedExampleClosure] = [:]
+    private let configuration = Configuration()
+
+    internal private(set) var isConfigurationFinalized = false
 
     internal var exampleHooks: ExampleHooks {return configuration.exampleHooks }
     internal var suiteHooks: SuiteHooks { return configuration.suiteHooks }
 
     // MARK: Singleton Constructor
 
-    fileprivate override init() {}
+    private override init() {}
     static let sharedWorld = World()
 
     // MARK: Public Interface
@@ -145,7 +146,7 @@ final internal class World: NSObject {
 
 #if _runtime(_ObjC)
     @objc(examplesForSpecClass:)
-    fileprivate func objc_examples(_ specClass: AnyClass) -> [Example] {
+    private func objc_examples(_ specClass: AnyClass) -> [Example] {
         return examples(specClass)
     }
 #endif
@@ -197,7 +198,7 @@ final internal class World: NSObject {
         currentExampleGroup = previousExampleGroup
     }
 
-    fileprivate var allExamples: [Example] {
+    private var allExamples: [Example] {
         var all: [Example] = []
         for (_, group) in specs {
             group.walkDownExamples { all.append($0) }
@@ -205,7 +206,7 @@ final internal class World: NSObject {
         return all
     }
 
-    fileprivate var includedExamples: [Example] {
+    private var includedExamples: [Example] {
         let all = allExamples
         let included = all.filter { example in
             return self.configuration.inclusionFilters.reduce(false) { $0 || $1(example) }
@@ -218,13 +219,13 @@ final internal class World: NSObject {
         }
     }
 
-    fileprivate func raiseIfSharedExampleAlreadyRegistered(_ name: String) {
+    private func raiseIfSharedExampleAlreadyRegistered(_ name: String) {
         if sharedExamples[name] != nil {
             raiseError("A shared example named '\(name)' has already been registered.")
         }
     }
 
-    fileprivate func raiseIfSharedExampleNotRegistered(_ name: String) {
+    private func raiseIfSharedExampleNotRegistered(_ name: String) {
         if sharedExamples[name] == nil {
             raiseError("No shared example named '\(name)' has been registered. Registered shared examples: '\(Array(sharedExamples.keys))'")
         }

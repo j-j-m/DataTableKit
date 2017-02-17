@@ -101,8 +101,6 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
     
     public func refreshPredicate(predicate:NSPredicate, completion:(() -> ())?){
         fetchedResultsController?.fetchRequest.predicate = predicate
-        print(fetchedResultsController?.fetchRequest.predicate)
-        print(predicate)
         
         refreshFetchedResults(completion: completion)
 
@@ -508,20 +506,9 @@ public class FetchedResultTableDirector<T:DataTableDirectorConforming>: NSObject
  //MARK: - NSFetchedResultsControllerDelegate
     
    
+  
     
-    public func controllerWillChangeContent(controller: NSFetchedResultsController<NSFetchRequestResult>) {
-        //        self.tableView!.beginUpdates()
-    }
-    
-    public func controller(controller: NSFetchedResultsController<NSFetchRequestResult>, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
-        
-    }
-    
-    public func controller(controller: NSFetchedResultsController<NSFetchRequestResult>, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
-        
-    }
-    
-    public func controllerDidChangeContent(controller: NSFetchedResultsController<NSFetchRequestResult>) {
+    public func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
 
         DispatchQueue.main.async {
             

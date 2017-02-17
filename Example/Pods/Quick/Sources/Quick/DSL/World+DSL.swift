@@ -18,7 +18,7 @@ extension World {
         registerSharedExample(name, closure: closure)
     }
 
-    internal func describe(_ description: String, flags: FilterFlags, closure: () -> ()) {
+    internal func describe(_ description: String, flags: FilterFlags, closure: () -> Void) {
         guard currentExampleMetadata == nil else {
             raiseError("'describe' cannot be used inside '\(currentPhase)', 'describe' may only be used inside 'context' or 'describe'. ")
         }
@@ -30,20 +30,20 @@ extension World {
         performWithCurrentExampleGroup(group, closure: closure)
     }
 
-    internal func context(_ description: String, flags: FilterFlags, closure: () -> ()) {
+    internal func context(_ description: String, flags: FilterFlags, closure: () -> Void) {
         guard currentExampleMetadata == nil else {
             raiseError("'context' cannot be used inside '\(currentPhase)', 'context' may only be used inside 'context' or 'describe'. ")
         }
         self.describe(description, flags: flags, closure: closure)
     }
 
-    internal func fdescribe(_ description: String, flags: FilterFlags, closure: () -> ()) {
+    internal func fdescribe(_ description: String, flags: FilterFlags, closure: () -> Void) {
         var focusedFlags = flags
         focusedFlags[Filter.focused] = true
         self.describe(description, flags: focusedFlags, closure: closure)
     }
 
-    internal func xdescribe(_ description: String, flags: FilterFlags, closure: () -> ()) {
+    internal func xdescribe(_ description: String, flags: FilterFlags, closure: () -> Void) {
         var pendingFlags = flags
         pendingFlags[Filter.pending] = true
         self.describe(description, flags: pendingFlags, closure: closure)
@@ -58,7 +58,7 @@ extension World {
 
 #if _runtime(_ObjC)
     @objc(beforeEachWithMetadata:)
-    internal func beforeEach(_ closure: @escaping BeforeExampleWithMetadataClosure) {
+    internal func beforeEach(closure: @escaping BeforeExampleWithMetadataClosure) {
         currentExampleGroup.hooks.appendBefore(closure)
     }
 #else
@@ -76,7 +76,7 @@ extension World {
 
 #if _runtime(_ObjC)
     @objc(afterEachWithMetadata:)
-    internal func afterEach(_ closure: @escaping AfterExampleWithMetadataClosure) {
+    internal func afterEach(closure: @escaping AfterExampleWithMetadataClosure) {
         currentExampleGroup.hooks.appendAfter(closure)
     }
 #else
@@ -85,7 +85,7 @@ extension World {
     }
 #endif
 
-    internal func it(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> ()) {
+    internal func it(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> Void) {
         if beforesCurrentlyExecuting {
             raiseError("'it' cannot be used inside 'beforeEach', 'it' may only be used inside 'context' or 'describe'. ")
         }
@@ -100,13 +100,13 @@ extension World {
         currentExampleGroup.appendExample(example)
     }
 
-    internal func fit(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> ()) {
+    internal func fit(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> Void) {
         var focusedFlags = flags
         focusedFlags[Filter.focused] = true
         self.it(description, flags: focusedFlags, file: file, line: line, closure: closure)
     }
 
-    internal func xit(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> ()) {
+    internal func xit(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> Void) {
         var pendingFlags = flags
         pendingFlags[Filter.pending] = true
         self.it(description, flags: pendingFlags, file: file, line: line, closure: closure)
@@ -131,33 +131,39 @@ extension World {
         }
     }
 
+    internal func fitBehavesLike(_ name: String, sharedExampleContext: @escaping SharedExampleContext, flags: FilterFlags, file: String, line: UInt) {
+        var focusedFlags = flags
+        focusedFlags[Filter.focused] = true
+        self.itBehavesLike(name, sharedExampleContext: sharedExampleContext, flags: focusedFlags, file: file, line: line)
+    }
+
 #if _runtime(_ObjC)
     @objc(itWithDescription:flags:file:line:closure:)
-    fileprivate func objc_it(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> ()) {
+    private func objc_it(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> Void) {
         it(description, flags: flags, file: file, line: line, closure: closure)
     }
 
     @objc(fitWithDescription:flags:file:line:closure:)
-    fileprivate func objc_fit(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> ()) {
+    private func objc_fit(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> Void) {
         fit(description, flags: flags, file: file, line: line, closure: closure)
     }
 
     @objc(xitWithDescription:flags:file:line:closure:)
-    fileprivate func objc_xit(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> ()) {
+    private func objc_xit(_ description: String, flags: FilterFlags, file: String, line: UInt, closure: @escaping () -> Void) {
         xit(description, flags: flags, file: file, line: line, closure: closure)
     }
 
     @objc(itBehavesLikeSharedExampleNamed:sharedExampleContext:flags:file:line:)
-    fileprivate func objc_itBehavesLike(_ name: String, sharedExampleContext: @escaping SharedExampleContext, flags: FilterFlags, file: String, line: UInt) {
+    private func objc_itBehavesLike(_ name: String, sharedExampleContext: @escaping SharedExampleContext, flags: FilterFlags, file: String, line: UInt) {
         itBehavesLike(name, sharedExampleContext: sharedExampleContext, flags: flags, file: file, line: line)
     }
 #endif
 
-    internal func pending(_ description: String, closure: () -> ()) {
+    internal func pending(_ description: String, closure: () -> Void) {
         print("Pending: \(description)")
     }
 
-    fileprivate var currentPhase: String {
+    private var currentPhase: String {
         if beforesCurrentlyExecuting {
             return "beforeEach"
         } else if aftersCurrentlyExecuting {
